@@ -203,54 +203,64 @@ class PHPRestSQL {
     function get() {
         if ($this->table) {
             $primary = $this->getPrimaryKeys();
-            if ($primary) {
-                if ($this->uid && count($primary) == count($this->uid)) { // get a row
-                    $this->display = 'row';
+            if (!$primary) { //no primary key - generate own IDs as workarround
+                $primary[] = 'phptestsql_virtid';
+            }
+            if ($this->uid && count($primary) == count($this->uid)) { // get a row
+                $this->display = 'row';
+                if($primary[0] != 'phptestsql_virtid') {
                     $where = '';
                     foreach($primary as $key => $pri) {
                         $where .= $pri.' = \''.$this->uid[$key].'\' AND ';
                     }
                     $where = substr($where, 0, -5);
-                    $resource = $this->db->getRow($this->table, $where);
-                    if ($resource) {
-                        if ($this->db->numRows($resource) > 0) {
-                            while ($row = $this->db->row($resource)) {
-                                $values = array();
-                                foreach ($row as $column => $data) {
-                                    $field = array(
-                                        'field' => $column,
-                                        'value' => $data
-                                    );
-                                    if (substr($column, -strlen($this->config['database']['foreignKeyPostfix'])) == $this->config['database']['foreignKeyPostfix']) {
-										$field['xlink'] = $this->config['settings']['baseURL'].'/'.substr($column, 0, -strlen($this->config['database']['foreignKeyPostfix'])).'/'.$data;
-                                    }
-                                    $values[] = $field;
-                                }
-                                $this->output['row'] = $values;
-                            }
-                            $this->generateResponseData();
-                        } else {
-                            $this->notFound();
-                        }
-                    } else {
-                        $this->unauthorized();
-                    }
-                } else { // get table
-                    $this->display = 'table';
-                    $resource = $this->db->getTable(join(', ', $primary), $this->table);
-                    if ($resource) {
-                        if ($this->db->numRows($resource) > 0) {
-                            while ($row = $this->db->row($resource)) {
-                                $this->output['table'][] = array(
-                                    'xlink' => $this->config['settings']['baseURL'].'/'.$this->table.'/'.join('/', $row),
-                                    'value' => join(' ', $row)
+                }else{
+                    $where = '1 LIMIT '.((int)$this->uid[0]-1).',1';
+                }
+                $resource = $this->db->getRow($this->table, $where);
+                if ($resource) {
+                    if ($this->db->numRows($resource) > 0) {
+                        while ($row = $this->db->row($resource)) {
+                            $values = array();
+                            foreach ($row as $column => $data) {
+                                $field = array(
+                                    'field' => $column,
+                                    'value' => $data
                                 );
+                                if (substr($column, -strlen($this->config['database']['foreignKeyPostfix'])) == $this->config['database']['foreignKeyPostfix']) {
+									$field['xlink'] = $this->config['settings']['baseURL'].'/'.substr($column, 0, -strlen($this->config['database']['foreignKeyPostfix'])).'/'.$data;
+                                }
+                                $values[] = $field;
                             }
+                            $this->output['row'] = $values;
                         }
                         $this->generateResponseData();
                     } else {
-                        $this->unauthorized();
+                        $this->notFound();
                     }
+                } else {
+                    $this->unauthorized();
+                }
+            } else { // get table
+                $this->display = 'table';
+                if($primary[0] != 'phptestsql_virtid') {
+                    $resource = $this->db->getTable(join(', ', $primary), $this->table);
+                }else{
+                    $resource = $this->db->getTable('@rownum:=@rownum+1 as phptestsql_virtid', '(SELECT @rownum:=0) r, '.$this->table);
+                }
+                
+                if ($resource) {
+                    if ($this->db->numRows($resource) > 0) {
+                        while ($row = $this->db->row($resource)) {
+                            $this->output['table'][] = array(
+                                'xlink' => $this->config['settings']['baseURL'].'/'.$this->table.'/'.join('/', $row),
+                                'value' => join(' ', $row)
+                            );
+                        }
+                    }
+                    $this->generateResponseData();
+                } else {
+                    $this->unauthorized();
                 }
             }
         } else { // get database
