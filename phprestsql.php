@@ -78,6 +78,11 @@ class PHPRestSQL {
     var $display = NULL;
     
     /**
+     * Requested sorting
+     */
+    var $sort = NULL;
+    
+    /**
      * Constructor. Parses the configuration file "phprestsql.ini", grabs any request data sent, records the HTTP
      * request method used and parses the request URL to find out the requested table name and primary key values.
      * @param str iniFile Configuration file to use
@@ -100,11 +105,28 @@ class PHPRestSQL {
 			$urlParts = explode('/', $urlString);
 			
 			$lastPart = array_pop($urlParts);
+			
+			if(preg_match('/\?sort\((.+)\)/', $lastPart, $match)) {
+			
+			    $this->sort=substr($match[1], 1);
+			    
+			    if($match[1]{0} == '-') {
+			        $this->sort.=' DESC';
+			    }else{
+			        $this->sort.=' ASC';
+			    }
+			    
+			    $dotPosition = strpos($lastPart, '?');
+			    $lastPart = substr($lastPart, 0, $dotPosition);
+			}
+			unset($match);
+			
 			$dotPosition = strpos($lastPart, '.');
 			if ($dotPosition !== FALSE) {
-				$this->extension = substr($lastPart, $dotPosition + 1);
+				$this->extension = substr($lastPart, $dotPosition + 1); //Note: May break if using sort
 				$lastPart = substr($lastPart, 0, $dotPosition);
 			}
+			
 			array_push($urlParts, $lastPart);
 			
 			if (isset($urlParts[0]) && $urlParts[0] == '') {
@@ -265,9 +287,9 @@ class PHPRestSQL {
             } else{
                 $this->display = 'table';
                 if($primary[0] != 'phptestsql_virtid') {
-                    $resource = $this->db->getTable('*', $this->table);
+                    $resource = $this->db->getTable('*', $this->table, $this->sort);
                 }else{
-                    $resource = $this->db->getTable('@rownum:=@rownum+1 as id, '.$this->table.'.*', '(SELECT @rownum:=0) r, '.$this->table);
+                    $resource = $this->db->getTable('@rownum:=@rownum+1 as id, '.$this->table.'.*', '(SELECT @rownum:=0) r, '.$this->table, $this->sort);
                 }
                 
                 if ($resource) {

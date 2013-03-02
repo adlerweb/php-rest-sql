@@ -87,8 +87,13 @@ class mysql2 {
      * @param str table
      * @return resource A resultset resource
      */
-    function getTable($primary, $table) {
-        return $this->db->query(sprintf('SELECT %s FROM %s', $primary, $table));
+    function getTable($primary, $table, $sort) {
+        if($sort) {
+            $sort = 'ORDER BY '.$sort;
+        }else{
+            $sort = '';
+        }
+        return $this->db->query(sprintf('SELECT %s FROM %s %s', $primary, $table, $sort));
     }
 
     /**
