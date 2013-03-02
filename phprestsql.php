@@ -241,7 +241,7 @@ class PHPRestSQL {
                 } else {
                     $this->unauthorized();
                 }
-            } else { // get table
+            } elseif ($this->config['settings']['fulltable'] != '1') { // get table
                 $this->display = 'table';
                 if($primary[0] != 'phptestsql_virtid') {
                     $resource = $this->db->getTable(join(', ', $primary), $this->table);
@@ -255,6 +255,27 @@ class PHPRestSQL {
                             $this->output['table'][] = array(
                                 'xlink' => $this->config['settings']['baseURL'].'/'.$this->table.'/'.join('/', $row),
                                 'value' => join(' ', $row)
+                            );
+                        }
+                    }
+                    $this->generateResponseData();
+                } else {
+                    $this->unauthorized();
+                }
+            } else{
+                $this->display = 'table';
+                if($primary[0] != 'phptestsql_virtid') {
+                    $resource = $this->db->getTable('*', $this->table);
+                }else{
+                    $resource = $this->db->getTable('@rownum:=@rownum+1 as id, '.$this->table.'.*', '(SELECT @rownum:=0) r, '.$this->table);
+                }
+                
+                if ($resource) {
+                    if ($this->db->numRows($resource) > 0) {
+                        while ($row = $this->db->row($resource)) {
+                            $this->output['table'][] = array(
+                                'xlink' => $this->config['settings']['baseURL'].'/'.$this->table.'/'.join('/', $row),
+                                'value' => $row
                             );
                         }
                     }
